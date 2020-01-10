@@ -31,6 +31,7 @@ from sugar3.graphics.toolcombobox import ToolComboBox
 from sugar3.graphics.combobox import ComboBox
 from sugar3.activity import activity
 from sugar3.activity import widgets
+from sugar3.activity.widgets import StopButton
 from sugar3.graphics.toggletoolbutton import ToggleToolButton
 from speech import SpeechManager
 
