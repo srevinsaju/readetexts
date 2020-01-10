@@ -234,12 +234,6 @@ class ViewToolbar(Gtk.Toolbar):
         self.insert(spacer, -1)
         spacer.show()
 
-        self.fullscreen = ToolButton('view-fullscreen')
-        self.fullscreen.set_tooltip(_('Fullscreen'))
-        self.fullscreen.connect('clicked', self.fullscreen_cb)
-        self.insert(self.fullscreen, -1)
-        self.fullscreen.show()
-
     def zoom_in_cb(self, button):
         self.activity.font_increase()
 

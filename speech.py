@@ -219,8 +219,6 @@ class SpeechManager(GObject.GObject):
         self._rate = DEFAULT_RATE
         self._is_playing = False
         self._is_paused = False
-        self._save_timeout_id = -1
-        self.restore()
 
     def enabled(self):
         return _HAS_GST
@@ -250,15 +248,9 @@ class SpeechManager(GObject.GObject):
 
     def set_pitch(self, pitch):
         self._pitch = pitch
-        if self._save_timeout_id != -1:
-            GLib.source_remove(self._save_timeout_id)
-        self._save_timeout_id = GLib.timeout_add(_SAVE_TIMEOUT, self.save)
 
     def set_rate(self, rate):
         self._rate = rate
-        if self._save_timeout_id != -1:
-            GLib.source_remove(self._save_timeout_id)
-        self._save_timeout_id = GLib.timeout_add(_SAVE_TIMEOUT, self.save)
 
     def say_text(self, text, pitch=None, rate=None, lang_code=None):
         if pitch is None:
@@ -289,23 +281,6 @@ class SpeechManager(GObject.GObject):
 
     def __primary_selection_cb(self, clipboard, text, user_data):
         self.say_text(text)
-
-    def save(self):
-        self._save_timeout_id = -1
-
-        settings = Gio.Settings('org.sugarlabs.speech')
-        settings.set_int('pitch', self._pitch)
-        settings.set_int('rate', self._rate)
-        logging.debug('saving speech configuration pitch %s rate %s',
-                      self._pitch, self._rate)
-        return False
-
-    def restore(self):
-        settings = Gio.Settings('org.sugarlabs.speech')
-        self._pitch = settings.get_int('pitch')
-        self._rate = settings.get_int('rate')
-        logging.debug('loading speech configuration pitch %s rate %s',
-                      self._pitch, self._rate)
 
     def get_all_voices(self):
         if self._player:

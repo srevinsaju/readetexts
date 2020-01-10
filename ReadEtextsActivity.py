@@ -23,6 +23,7 @@ import rtfconvert
 import xopower
 import speech
 import pickle as pickle
+import shutil
 from gi.repository import TelepathyGLib
 from gi.repository import GObject
 import dbus
@@ -33,12 +34,10 @@ from sugar3.graphics.toggletoolbutton import ToggleToolButton
 from sugar3.graphics.menuitem import MenuItem
 from sugar3.graphics.toolbutton import ToolButton
 from readtoolbar import ViewToolbar, EditToolbar,  BooksToolbar,  SpeechToolbar
-from sugar3.activity.widgets import ActivityToolbarButton, StopButton
+from sugar3.activity.widgets import StopButton
 from sugar3.graphics.toolbarbox import ToolbarButton
 from sugar3.graphics.toolbarbox import ToolbarBox
 from sugar3.graphics.alert import NotifyAlert
-from sugar3.datastore import datastore
-from sugar3.activity import activity
 from sugar3 import profile
 from sugar3.graphics import style
 from gi.repository import Gdk
@@ -52,6 +51,8 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('TelepathyGLib', '0.12')
 
+from sugarapp.widgets import ExtendedActivityToolbarButton
+from sugarapp.widgets import SugarCompatibleActivity
 
 PAGE_SIZE = 38
 TOOLBAR_READ = 2
@@ -187,14 +188,14 @@ class ReadURLDownloader(network.GlibURLDownloader):
 READ_STREAM_SERVICE = 'read-activity-http'
 
 
-class ReadEtextsActivity(activity.Activity):
+class ReadEtextsActivity(SugarCompatibleActivity):
     def __init__(self, handle):
         "The entry point to the Activity"
         Gdk.threads_init()
         self.current_word = 0
         self.word_tuples = []
 
-        activity.Activity.__init__(self, handle)
+        SugarCompatibleActivity.__init__(self, handle)
 
         self.fileserver = None
         self.object_id = handle.object_id
@@ -322,7 +323,7 @@ class ReadEtextsActivity(activity.Activity):
         self.tempfile = None
         self.close_requested = False
         self.connect("shared", self.shared_cb)
-        h = hash(self._activity_id)
+        h = hash(self.get_bundle_id())
         self.port = 1024 + (h % 64511)
 
         self.is_received_document = False
@@ -337,7 +338,8 @@ class ReadEtextsActivity(activity.Activity):
                 self.connect("joined", self.joined_cb)
         elif self.object_id is None:
             # Not joining, not resuming
-            f = open("help.txt", "r")
+            script_dir = os.path.dirname(os.path.realpath(__file__))
+            f = open(os.path.join(script_dir, 'help.txt'), 'r')
             line = ''
             label_text = ''
             while True:
@@ -355,12 +357,12 @@ class ReadEtextsActivity(activity.Activity):
 
     def close(self, **kwargs):
         self.speech_toolbar.stop()
-        activity.Activity.close(self, **kwargs)
+        SugarCompatibleActivity.close(self, **kwargs)
 
     def create_new_toolbar(self):
         toolbar_box = ToolbarBox()
 
-        activity_button = ActivityToolbarButton(self)
+        activity_button = ExtendedActivityToolbarButton(self)
         toolbar_box.toolbar.insert(activity_button, 0)
         activity_button.show()
 
@@ -972,7 +974,7 @@ class ReadEtextsActivity(activity.Activity):
         logger.debug('ReadEtextsActivity.read_file: %s', file_path)
         tempfile = os.path.join(self.get_activity_root(),
                                 'instance', 'tmp%i' % time.time())
-        os.link(file_path,  tempfile)
+        shutil.copyfile(file_path, tempfile)
         self.tempfile = tempfile
         self.load_document(self.tempfile)
 
@@ -1118,43 +1120,20 @@ class ReadEtextsActivity(activity.Activity):
 
     def write_file(self, filename):
         "Save meta data for the file."
-        if self.is_received_document:
-            # This document was given to us by someone, so we have
-            # to save it to the Journal.
-            self.etext_file.seek(0)
-            filebytes = self.etext_file.read()
-            print('saving shared document')
-            f = open(filename, 'wb')
-            try:
-                f.write(filebytes)
-            finally:
-                f.close()
-        elif self.tempfile:
-            if self.close_requested:
-                textbuffer = self.annotation_textview.get_buffer()
-                self.annotations.add_note(self.page,  textbuffer.get_text(
-                    textbuffer.get_start_iter(),  textbuffer.get_end_iter(), True))
-                title = self.metadata.get('title', '')
-                self.annotations.set_title(str(title))
-                self.annotations.save()
-                self.rewrite_zip()
-                os.link(self.tempfile,  filename)
-                logger.debug(
-                    "Removing temp file %s because we will close", self.tempfile)
-                os.unlink(self.tempfile)
-                os.remove(self.pickle_file_temp)
-                self.tempfile = None
-                self.pickle_file_temp = None
-        else:
-            # skip saving empty file
-            raise NotImplementedError
-        # The last book we downloaded has 2 journal entries.  Delete the other one.
-        if self.extra_journal_entry != None and self.close_requested:
-            datastore.delete(self.extra_journal_entry.object_id)
+        if self.tempfile:
+            textbuffer = self.annotation_textview.get_buffer()
+            self.annotations.add_note(self.page,  textbuffer.get_text(textbuffer.get_start_iter(),  textbuffer.get_end_iter(), True))
+            title = self.metadata.get('title', '')
+            self.annotations.set_title(str(title))
+            self.annotations.save()
+            self.rewrite_zip()
+            shutil.copyfile(self.tempfile,  filename)
 
-        self.metadata['activity'] = self.get_bundle_id()
-        self.metadata['mime_type'] = 'application/zip'
-        self.save_page_number()
+        if self.close_requested:
+            # Remove all temporary files
+            instance_path = os.path.join(self.get_activity_root(), 'instance')
+            shutil.rmtree(instance_path, ignore_errors=True, onerror=None)
+ 
 
     def can_close(self):
         self.close_requested = True
@@ -1186,7 +1165,8 @@ class ReadEtextsActivity(activity.Activity):
                 'You must enter at least one search word.'))
             self.books_toolbar.search_entry.grab_focus()
             return
-        f = open('bookcatalog.txt', 'rb')
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        f = open(os.path.join(script_dir, 'bookcatalog.txt'), 'rb')
         while f:
             line = f.readline().decode('iso-8859-1')
             if not line:
@@ -1304,30 +1284,13 @@ class ReadEtextsActivity(activity.Activity):
         self.tempfile = tempfile
         file_path = os.path.join(self.get_activity_root(), 'instance',
                                  '%i' % time.time())
-        os.link(tempfile, file_path)
+        shutil.copyfile(tempfile, file_path)
         logger.debug("Got document %s (%s)", tempfile, suggested_name)
         self.create_journal_entry(tempfile)
         self.load_document(tempfile)
 
     def create_journal_entry(self,  tempfile):
         self.progressbar.hide()
-        journal_entry = datastore.create()
-        journal_title = self.selected_title
-        if self.selected_author != ' ':
-            journal_title = journal_title + ', by ' + self.selected_author
-        journal_entry.metadata['title'] = journal_title
-        self.metadata['title'] = journal_title
-        journal_entry.metadata['title_set_by_user'] = '1'
-        journal_entry.metadata['activity'] = self.get_bundle_id()
-        journal_entry.metadata['keep'] = '0'
-        journal_entry.metadata['mime_type'] = 'application/zip'
-        journal_entry.metadata['buddies'] = ''
-        journal_entry.metadata['preview'] = ''
-        journal_entry.metadata['icon-color'] = profile.get_color().to_string()
-        journal_entry.metadata['tags'] = self.selected_author
-        journal_entry.file_path = tempfile
-        datastore.write(journal_entry)
-        self.extra_journal_entry = journal_entry
         self.alert(_('Success'), self.selected_title + _(' added to Journal.'))
 
     def find_previous(self):
