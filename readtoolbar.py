@@ -34,6 +34,7 @@ from sugar3.activity import widgets
 from sugar3.graphics.toggletoolbutton import ToggleToolButton
 from speech import SpeechManager
 
+from sugarapp.helpers import PrimaryMonitor
 
 class ReadToolbar(Gtk.Toolbar):
     __gtype_name__ = 'ReadToolbar'
@@ -263,7 +264,7 @@ class EditToolbar(widgets.EditToolbar):
         self.search_entry = Gtk.Entry()
         self.search_entry.connect('activate', self.search_entry_activate_cb)
 
-        width = int(Gdk.Screen.width() / 3)
+        width = int(PrimaryMonitor.width() / 3)
         self.search_entry.set_size_request(width, -1)
 
         self.search_entry.props.sensitive = False
@@ -324,7 +325,7 @@ class BooksToolbar(Gtk.Toolbar):
         self.search_entry.connect('activate', self.search_entry_activate_cb)
         self.search_entry.connect("key_press_event", self.keypress_cb)
 
-        width = int(Gdk.Screen.width() / 2)
+        width = int(PrimaryMonitor.width() / 2)
         self.search_entry.set_size_request(width, -1)
 
         book_search_item.add(self.search_entry)
