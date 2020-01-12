@@ -73,6 +73,7 @@ class Annotations():
         self.bookmarks = []
         self.highlights = {0:  []}
         self.pickle_file_name = pickle_file_name
+        self.current_page = 0
 
     def get_title(self):
         return self.title
@@ -125,6 +126,12 @@ class Annotations():
         if tuples_list == []:
             del self.highlights[page]
 
+    def get_current_page(self):
+        return self.current_page
+
+    def set_current_page(self, page):
+        self.current_page = page
+
     def restore(self):
         if os.path.exists(self.pickle_file_name):
             pickle_input = open(self.pickle_file_name,  'rb')
@@ -132,6 +139,7 @@ class Annotations():
             self.bookmarks = pickle.load(pickle_input)
             self.notes = pickle.load(pickle_input)
             self.highlights = pickle.load(pickle_input)
+            self.current_page = pickle.load(pickle_input)
             pickle_input.close()
 
     def save(self):
@@ -140,6 +148,7 @@ class Annotations():
         pickle.dump(self.bookmarks,  pickle_output)
         pickle.dump(self.notes,  pickle_output)
         pickle.dump(self.highlights,  pickle_output)
+        pickle.dump(self.current_page,  pickle_output)
         pickle_output.close()
 
 
@@ -301,9 +310,7 @@ class ReadEtextsActivity(SugarCompatibleActivity):
         self.underline_tag.set_property('foreground', 'black')
         self.underline_tag.set_property('background', 'yellow')
 
-        self.pickle_file_temp = os.path.join(
-            self.get_activity_root(),  'instance', 'pkl%i' % time.time())
-        self.annotations = Annotations(self.pickle_file_temp)
+        self.setup_annotations()
 
         xopower.setup_idle_timeout()
         if xopower.service_activated:
@@ -853,6 +860,7 @@ class ReadEtextsActivity(SugarCompatibleActivity):
         self.current_page = page
         self.update_nav_buttons()
         self.page = page
+        self.annotations.set_current_page(page)
 
     def show_page(self, page_number):
         self.show_bookmark_state()
@@ -981,38 +989,12 @@ class ReadEtextsActivity(SugarCompatibleActivity):
         partition_tuple = filename.rpartition('/')
         return partition_tuple[2]
 
-    def get_saved_page_number(self):
-        title = self.metadata.get('title', '')
-        if title == '' or not title[len(title) - 1].isdigit():
-            self.page = 0
-        else:
-            i = len(title) - 1
-            page = ''
-            while (title[i].isdigit() and i > 0):
-                page = title[i] + page
-                i = i - 1
-            if title[i] == 'P':
-                self.page = int(page) - 1
-            else:
-                # not a page number; maybe a volume number.
-                self.page = 0
-
-    def save_page_number(self):
-        title = self.metadata.get('title', '')
-        if title == '' or not title[len(title) - 1].isdigit():
-            title = title + ' P' + str(self.page + 1)
-        else:
-            i = len(title) - 1
-            while (title[i].isdigit() and i > 0):
-                i = i - 1
-            if title[i] == 'P':
-                title = title[0:i] + 'P' + str(self.page + 1)
-            else:
-                title = title + ' P' + str(self.page + 1)
-        self.metadata['title'] = title
-
     def load_document(self, filename):
         "Read the Etext file"
+        
+        # Reset annotations incase there might be not one to restore from
+        self.setup_annotations()
+        
         if zipfile.is_zipfile(filename):
             self.zf = zipfile.ZipFile(filename, 'r')
             self.book_files = self.zf.namelist()
@@ -1070,7 +1052,7 @@ class ReadEtextsActivity(SugarCompatibleActivity):
             self.metadata['title'] = self.annotations.get_title()
             self.metadata['title_set_by_user'] = '1'
 
-        self.get_saved_page_number()
+        self.page = self.annotations.get_current_page()
         self.show_page(self.page)
         self.set_total_pages(pagecount + 1)
         self.set_current_page(self.page)
@@ -1082,6 +1064,10 @@ class ReadEtextsActivity(SugarCompatibleActivity):
         if self.get_shared():
             self.watch_for_tubes()
             self.share_document()
+
+    def setup_annotations(self):
+        self.pickle_file_temp = os.path.join(self.get_activity_root(),  'instance', 'pkl%i' % time.time())
+        self.annotations = Annotations(self.pickle_file_temp)
 
     def rewrite_zip(self):
         if zipfile.is_zipfile(self.tempfile):
@@ -1132,7 +1118,6 @@ class ReadEtextsActivity(SugarCompatibleActivity):
             # Remove all temporary files
             instance_path = os.path.join(self.get_activity_root(), 'instance')
             shutil.rmtree(instance_path, ignore_errors=True, onerror=None)
- 
 
     def can_close(self):
         self.close_requested = True
