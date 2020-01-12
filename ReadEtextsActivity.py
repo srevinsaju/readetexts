@@ -338,7 +338,7 @@ class ReadEtextsActivity(SugarCompatibleActivity):
                 self.connect("joined", self.joined_cb)
         elif self.object_id is None:
             # Not joining, not resuming
-            f = open('help.txt', 'r')
+            f = open("help.txt", "r")
             line = ''
             label_text = ''
             while True:
@@ -1164,8 +1164,7 @@ class ReadEtextsActivity(SugarCompatibleActivity):
                 'You must enter at least one search word.'))
             self.books_toolbar.search_entry.grab_focus()
             return
-        script_dir = os.path.dirname(os.path.realpath(__file__))
-        f = open(os.path.join(script_dir, 'bookcatalog.txt'), 'rb')
+        f = open('bookcatalog.txt', 'rb')
         while f:
             line = f.readline().decode('iso-8859-1')
             if not line:
