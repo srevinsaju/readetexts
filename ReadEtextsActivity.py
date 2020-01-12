@@ -1143,13 +1143,13 @@ class ReadEtextsActivity(SugarCompatibleActivity):
         tv = selection.get_tree_view()
         model = tv.get_model()
         sel = selection.get_selected()
-        print(sel)
         if sel:
             model, _iter = sel
-            self.selected_title = model.get_value(_iter, COLUMN_TITLE)
-            self.selected_author = model.get_value(_iter, COLUMN_AUTHOR)
-            self.selected_path = model.get_value(_iter, COLUMN_PATH)
-            self.books_toolbar.enable_button(True)
+            if _iter:
+                self.selected_title = model.get_value(_iter, COLUMN_TITLE)
+                self.selected_author = model.get_value(_iter, COLUMN_AUTHOR)
+                self.selected_path = model.get_value(_iter, COLUMN_PATH)
+                self.books_toolbar.enable_button(True)
 
     def find_books(self, search_text):
         self.clear_downloaded_bytes()
@@ -1216,13 +1216,13 @@ class ReadEtextsActivity(SugarCompatibleActivity):
         logger.debug("Starting download to %s...", path)
         try:
             getter.start(path)
+            self.download_content_length = getter.get_content_length()
+            self.download_content_type = getter.get_content_type()
+            self.textview.grab_focus()
         except:
             self.alert(_('Error'), _(
                 'Connection timed out for ') + self.selected_title)
-
-        self.download_content_length = getter.get_content_length()
-        self.download_content_type = getter.get_content_type()
-        self.textview.grab_focus()
+            self.get_book_error_cb(getter, _('Connection timed out for ') + self.selected_title)
 
     def get_iso_book_result_cb(self, getter, tempfile, suggested_name):
         if self.download_content_type.startswith('text/html'):
