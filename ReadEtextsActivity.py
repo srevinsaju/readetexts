@@ -338,8 +338,7 @@ class ReadEtextsActivity(SugarCompatibleActivity):
                 self.connect("joined", self.joined_cb)
         elif self.object_id is None:
             # Not joining, not resuming
-            script_dir = os.path.dirname(os.path.realpath(__file__))
-            f = open(os.path.join(script_dir, 'help.txt'), 'r')
+            f = open('help.txt', 'r')
             line = ''
             label_text = ''
             while True:
