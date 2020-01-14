@@ -639,7 +639,7 @@ class ReadEtextsActivity(SugarCompatibleActivity):
         textbuffer = self.textview.get_buffer()
         begin, end = textbuffer.get_selection_bounds()
         copy_text = textbuffer.get_text(begin, end, True)
-        self.clipboard.set_text(copy_text)
+        self.clipboard.set_text(copy_text, len(copy_text))
 
     def view_toolbar_go_fullscreen_cb(self, view_toolbar):
         self.fullscreen()
