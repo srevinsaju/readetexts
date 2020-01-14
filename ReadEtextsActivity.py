@@ -918,7 +918,7 @@ class ReadEtextsActivity(SugarCompatibleActivity):
         linecount = 0
         label_text = '\n\n\n'
         while linecount < PAGE_SIZE:
-            line = self.etext_file.readline()
+            line = self.etext_file.readline().decode('iso-8859-1')
             if not line:
                 break
             else:
@@ -1327,7 +1327,8 @@ class ReadEtextsActivity(SugarCompatibleActivity):
         self.current_found_item = -1
         self.etext_file.seek(0)
         while self.etext_file:
-            line = str(self.etext_file.readline())
+            line = str(self.etext_file.readline().decode('iso-8859-1'))
+            print(line)
             line_length = len(line)
             if not line:
                 break
